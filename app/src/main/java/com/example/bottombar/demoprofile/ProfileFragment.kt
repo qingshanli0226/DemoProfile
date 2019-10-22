@@ -34,7 +34,7 @@ class ProfileFragment : Fragment(), AccountManager.IAccountStatusChangeListener 
     private lateinit var avatarImageView: ImageView
 
     //拍的照片存储路径
-    private var photoPath = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "com.example.bottombar.demoprofile"+ "/photo/1704.jpg"
+    private var photoPath = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "com.example.bottombar.demoprofile"+ "/1704.jpg"
 
 
     override fun onRegisterSuccess() {
@@ -124,7 +124,9 @@ class ProfileFragment : Fragment(), AccountManager.IAccountStatusChangeListener 
         var photoFile = File(photoPath)
         if (!photoFile.parentFile.exists())  {//如果存放照片的路径不存在，创建该路径
             photoFile.parentFile.mkdir()
+            Log.d("LQS", "takePhoto mkdir ${photoFile.parentFile.absolutePath}")
         }
+        Log.d("LQS", "takePhoto...")
         //如果之前的照片存在则删掉
         if (photoFile.exists()) {
             photoFile.delete()
@@ -147,6 +149,7 @@ class ProfileFragment : Fragment(), AccountManager.IAccountStatusChangeListener 
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        Log.d("LQS", "onActivityResult: " + requestCode)
         if (requestCode != 200) {
             return
         }
