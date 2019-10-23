@@ -16,6 +16,7 @@ class RetrofitCreator {
             if (apiService == null) {
                 var okhttpClient = OkHttpClient.Builder()
                     .connectTimeout(5000, TimeUnit.SECONDS)
+                    .addInterceptor(TokenInterceptor())//添加token拦截器
                     .build()
                 retrofit = Retrofit.Builder()
                     .addConverterFactory(GsonConverterFactory.create())

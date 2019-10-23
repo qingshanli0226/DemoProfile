@@ -3,6 +3,7 @@ package com.example.bottombar.demoprofile;
 import android.content.Context;
 import android.content.SharedPreferences;
 import com.example.bottombar.net.LoginBean;
+import com.example.bottombar.net.TokenCache;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,6 +41,13 @@ public class AccountManager {
         }
     }
 
+    public String getToken(){
+        if (isLogin()) {
+            SharedPreferences sp = ProfileApplication.instance.getSharedPreferences(TOKEN, Context.MODE_PRIVATE);
+            return sp.getString(TOKEN, "");
+        }
+        return null;
+    }
 
     //存储token
     public void saveToken(String token) {
@@ -66,12 +74,14 @@ public class AccountManager {
 
     //通知登录成功,带参数，把用户信息传递过去
     public void notifyLoginSuccess(LoginBean bean) {
+        loginBean = bean;//内存缓存一份
+        saveToken(bean.getToken());//token存储到本地
+        TokenCache.token = bean.getToken();//把token 设置到net 模块
         synchronized (AccountManager.class) {
             for(IAccountStatusChangeListener listener:accountStatusChangeListeners) {
                 listener.onLoginSuccess(bean);
             }
-            loginBean = bean;//内存缓存一份
-            saveToken(bean.getToken());//token存储到本地
+
         }
     }
 
