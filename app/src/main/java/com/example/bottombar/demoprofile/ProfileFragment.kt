@@ -1,8 +1,9 @@
 package com.example.bottombar.demoprofile
 
-import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.Context
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -20,7 +21,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.MediaController
 import android.widget.Toast
 import com.example.bottombar.net.LoginBean
 import com.example.bottombar.net.NetBean
@@ -39,8 +39,10 @@ import java.io.File
 
 class ProfileFragment : Fragment(), AccountManager.IAccountStatusChangeListener {
 
+
     val CAPTURE_REQUEST_CODE = 200
     val CROP_REQUEST_CODE = 300
+    val ALBUM_REQUEST_CODE = 400
     val BASER_URL:String = "http://169.254.230.253:8080/atguigu/img"
 
     //需要申请这两个权限
@@ -53,23 +55,52 @@ class ProfileFragment : Fragment(), AccountManager.IAccountStatusChangeListener 
     //存放裁减后的图片
     private var cropPhotoPath = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "com.example.bottombar.demoprofile"+ "/" + System.currentTimeMillis() + "_crop.jpg"
     private var testPhotoPath = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "image.jpg"
+    //头像图片存放路径
+    private var selectMode:Int? = -1
 
+    override fun onAvatarUpdate(avatarPath: String?) {
+        //更新后刷新UI
+        avatarImageView.post(object :Runnable{
+            override fun run() {
+                Picasso.get().load(avatarPath).into(avatarImageView)
+            }
+        })
+    }
 
     override fun onRegisterSuccess() {
 
     }
 
     override fun onLoginSuccess(bean: LoginBean?) {
-        if (bean!!.avatar != null) {//如果我S们没有上传图片，avatar值为null，直接返回
-            Picasso.get().load(BASER_URL+ bean!!.avatar as String).into(avatarImageView)
+            if (File(AccountManager.getInstance().avatar).exists()) {
+                Picasso.get().load(AccountManager.getInstance().newAlbumPath).into(avatarImageView)//从本地加载头像
+            }
             return
-        } else {//否则上传一张图片
-            sendAvatarToServer()
-        }
-
     }
 
     override fun onLogout() {
+    }
+
+    fun showSelectDialog() {
+        Log.d("LQS","showSelectDialog")
+        val normalDialog =
+             AlertDialog.Builder(activity);
+        normalDialog.setIcon(R.drawable.ic_launcher_background);
+        normalDialog.setTitle("请选择获取头像方式")
+        normalDialog.setPositiveButton("相机",
+            object : DialogInterface.OnClickListener{
+                override fun onClick(dialog: DialogInterface?, which: Int) {
+                    takePhoto()
+                    selectMode = CAPTURE_REQUEST_CODE
+                }
+            })
+        normalDialog.setNegativeButton("相册", object : DialogInterface.OnClickListener{
+            override fun onClick(dialog: DialogInterface?, which: Int) {
+                launchAlbum()
+                selectMode = ALBUM_REQUEST_CODE
+            }
+        })
+        normalDialog.show()
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
@@ -82,7 +113,8 @@ class ProfileFragment : Fragment(), AccountManager.IAccountStatusChangeListener 
             if (AccountManager.getInstance().isLogin) {
                 //需要根据当前用户是否已经上传头像，如果之前已经上传则提示用户是否要更新头像,进行上传头像
                 if (AccountManager.getInstance().isHasAvatar) {
-                    Log.d("LQS","isHasAvatar")
+                    Log.d("LQS","has avatar")
+                    showSelectDialog()
                     //提示用户更新
                 } else {
                     if (Build.VERSION.SDK_INT >= 23) {//只有系统版本大于23时才申请
@@ -98,9 +130,11 @@ class ProfileFragment : Fragment(), AccountManager.IAccountStatusChangeListener 
                             //异步请求
                             requestPermissions(arrayPerm, 100) //第二参数是requestcode
                         } else {//之前已经授权了直接执行
-                            Log.d("LQS","takePhoto")
-                            takePhoto()
+                            Log.d("LQS","show dialog")
+                            showSelectDialog()
                         }
+                    }else {//23版本之下直接显示
+                        showSelectDialog()
                     }
                 }
             } else {
@@ -115,6 +149,17 @@ class ProfileFragment : Fragment(), AccountManager.IAccountStatusChangeListener 
         AccountManager.getInstance().addIAccountStatusChangeListener(this)
 
         return rootView
+    }
+
+    override fun onActivityCreated(savedInstanceState: Bundle?) {
+        super.onActivityCreated(savedInstanceState)
+
+        //页面一启动，就显示UI 相当于GET
+        if (File(AccountManager.getInstance().avatar).exists()) {
+            var bitmap = BitmapFactory.decodeFile(AccountManager.getInstance().avatar)
+            avatarImageView.setImageBitmap(bitmap)
+
+        }
     }
 
     //申请权限的回调函数
@@ -139,7 +184,7 @@ class ProfileFragment : Fragment(), AccountManager.IAccountStatusChangeListener 
         } else {
             //调用Camera拍照头像
             Log.d("LQS","全部授权，开始拍照")
-            takePhoto()
+            showSelectDialog()
         }
     }
 
@@ -170,8 +215,29 @@ class ProfileFragment : Fragment(), AccountManager.IAccountStatusChangeListener 
         startActivityForResult(intent, CAPTURE_REQUEST_CODE)
     }
 
+    //从本地获取图片
+    private fun launchAlbum() {
+        val file = File(AccountManager.getInstance().generateNewAlbumPath())
+        if (file.exists()) {
+            file.delete()
+        }
+        if (!file.parentFile.exists()) {
+            file.getParentFile().mkdirs()
+        }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        val getImage = Intent(
+            Intent.ACTION_PICK,
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+        )
+        try {
+            startActivityForResult(getImage, ALBUM_REQUEST_CODE)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+    }
+
+   override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         Log.d("LQS", "onActivityResult: " + requestCode)
 
@@ -194,11 +260,27 @@ class ProfileFragment : Fragment(), AccountManager.IAccountStatusChangeListener 
             //裁减返回
             CROP_REQUEST_CODE-> {
                 if (resultCode == Activity.RESULT_OK) {
-                    var bitmap = BitmapFactory.decodeFile(cropPhotoPath)//照片返回，生成bitmap
+                    var bitmap:Bitmap? = null
+                    if (selectMode == CAPTURE_REQUEST_CODE) {//拍照返回
+                        bitmap = BitmapFactory.decodeFile(cropPhotoPath)//照片返回，生成bitmap
+                    } else {
+                        bitmap = BitmapFactory.decodeFile(AccountManager.getInstance().newAlbumPath)//相册返回，生成bitmap
+                    }
+
                     Log.d("LQS", "crop 尺寸：${bitmap.byteCount}")
                     avatarImageView.setImageBitmap(bitmap)//设置bitmap
 
                     sendAvatarToServer()
+                }
+            }
+
+            ALBUM_REQUEST_CODE-> {
+                if (resultCode == Activity.RESULT_OK) {
+                    if (data != null) {
+                        val outFile = File(AccountManager.getInstance().newAlbumPath)//获取裁减后的图片
+                        val outUri = Uri.fromFile(outFile)
+                        cropImage(activity!!, data.data, outUri, 300, 600)
+                    }
                 }
             }
         }
@@ -208,7 +290,7 @@ class ProfileFragment : Fragment(), AccountManager.IAccountStatusChangeListener 
     private fun sendAvatarToServer() {
         Log.d("LQS server path: ", "sendAvatarToServer")
         //创建一个请求body
-        var uploadFile = File(testPhotoPath)
+        var uploadFile = File(AccountManager.getInstance().newAlbumPath)
         var requestBody = RequestBody.create(MediaType.parse("image/*"), uploadFile)
 
         //创建Part参数
@@ -220,7 +302,7 @@ class ProfileFragment : Fragment(), AccountManager.IAccountStatusChangeListener 
             .subscribe(object: Observer<NetBean<String>> {
                 override fun onNext(t: NetBean<String>) {
 
-                    Log.d("LQS server path: ", t.result)
+                    Log.d("LQS server path---: ", t.result)
                     Picasso.get().load(BASER_URL+t.result).into(avatarImageView)
                 }
 

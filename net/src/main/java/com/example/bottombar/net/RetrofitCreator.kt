@@ -6,12 +6,13 @@ import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
-class RetrofitCreator {
 
-    companion object {
+class RetrofitCreator @JvmOverloads constructor() {
+
+    companion  object {
         private var apiService:ApiService? = null
         private lateinit var retrofit: Retrofit
-        private var baseUrl = "http://169.254.230.253:8080/"
+        public var baseUrl = "http://169.254.230.253:8080/"
         fun getApiService():ApiService {
             if (apiService == null) {
                 var okhttpClient = OkHttpClient.Builder()

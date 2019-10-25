@@ -1,7 +1,9 @@
 package com.example.bottombar.net
 
 import io.reactivex.Observable
+import io.reactivex.ObservableEmitter
 import okhttp3.MultipartBody
+import okhttp3.ResponseBody
 import retrofit2.http.*
 
 interface ApiService {
@@ -21,5 +23,11 @@ interface ApiService {
     @Multipart
     @POST("upload")
     fun uploadAvatar(@Part file:MultipartBody.Part) : Observable<NetBean<String>>
+
+    //下载文件
+    //streaming注解防止内存溢出 ResponseBody是RxJava返回值的通用类型
+    @Streaming
+    @GET
+    fun downloadAvatar(@Url dowloadUrl:String):Observable<ResponseBody>
 
 }

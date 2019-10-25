@@ -5,9 +5,7 @@ import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.widget.Toast
-import com.example.bottombar.net.LoginBean
-import com.example.bottombar.net.NetBean
-import com.example.bottombar.net.RetrofitCreator
+import com.example.bottombar.net.*
 import io.reactivex.Observer
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
@@ -39,25 +37,11 @@ class LoginActivity : AppCompatActivity() {
         RetrofitCreator.getApiService().login(name.text.toString(), password.text.toString())
             .subscribeOn(Schedulers.io())
             .observeOn(AndroidSchedulers.mainThread())
-            .subscribe(object : Observer<NetBean<LoginBean>> {
-                override fun onComplete() {
-
-                }
-
-                override fun onNext(t: NetBean<LoginBean>) {
-                    Toast.makeText(this@LoginActivity, "登录成功${t.result}", Toast.LENGTH_SHORT).show()
-                    Log.d("LQS", "${t.toString()}")
-                    AccountManager.getInstance().notifyLoginSuccess(t.result)//通知登录成功
-                    //跳转到主页面
-                    finish()//关闭该页面
-                }
-
-                override fun onError(e: Throwable) {
-
-                }
-
-                override fun onSubscribe(d: Disposable) {
-
+            .map(NetFunction<NetBean<LoginBean>, LoginBean>())
+            .subscribe(object :MyObserver<LoginBean>() {
+                override fun onNext(t: LoginBean) {
+                    Toast.makeText(this@LoginActivity, "${t.toString()}", Toast.LENGTH_SHORT).show()
+                    AccountManager.getInstance().notifyLoginSuccess(t)//通知登录成功
                 }
             })
     }
