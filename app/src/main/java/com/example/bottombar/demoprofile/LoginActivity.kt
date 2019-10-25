@@ -42,6 +42,7 @@ class LoginActivity : AppCompatActivity() {
                 override fun onNext(t: LoginBean) {
                     Toast.makeText(this@LoginActivity, "${t.toString()}", Toast.LENGTH_SHORT).show()
                     AccountManager.getInstance().notifyLoginSuccess(t)//通知登录成功
+                    finish()
                 }
             })
     }

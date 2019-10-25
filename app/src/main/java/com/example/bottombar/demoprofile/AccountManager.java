@@ -22,7 +22,8 @@ public class AccountManager {
     private final String AVATAR = "avatar";
     private LoginBean loginBean;
 
-    private String newAlbumPath;
+    private String thumnailAlbumPath;//相册缩略图
+    //存放头像路径的目录
     private String avatarDir = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "com.example.bottombar.demoprofile"+ "/";
 
 
@@ -35,7 +36,6 @@ public class AccountManager {
         if (instance == null) {
             instance = new AccountManager();
         }
-
         return instance;
     }
 
@@ -95,7 +95,7 @@ public class AccountManager {
             }
         }
 
-        //检查当前头像是否是最新的
+        //登录成功后需要检查当前头像是否是最新的
         if (checkIfAvatarNeedUpdate()) {
             updateAvatar();
         }
@@ -108,28 +108,29 @@ public class AccountManager {
                 listener.onAvatarUpdate(avatarPath);
             }
         }
+
+    }
+
+    public void saveAvatar(String thumnailAlbumPath) {
         SharedPreferences sp = ProfileApplication.instance.getSharedPreferences(TOKEN, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sp.edit();
 
-        editor.putString(AVATAR, avatarPath).commit();
+        //将头像保存到sp中。下次应用启动时，读取显示
+        editor.putString(AVATAR, thumnailAlbumPath).commit();
     }
 
-    //更新头像
+    //下载更新头像
     private void updateAvatar() {
-
-        Log.d("LQS", "updateAvatar");
         //第一步下载头像
         //先删除原来的
         File[] albumFiles = new File(avatarDir).listFiles();
-        File albumFile = null;
         if (albumFiles.length > 0) {
-            albumFile = albumFiles[0];
-            if (albumFile.exists()) {
-                albumFile.delete();
+            for(File item:albumFiles) {
+                item.delete();
             }
         }
 
-                //生成一个url地址
+        //生成一个url地址
         String avatarServer = (String) loginBean.getAvatar();
         String downloadUrl = RetrofitCreator.Companion.getBaseUrl()+"atguigu/img/" + avatarServer.substring(1, avatarServer.length());
         Log.d("LQS", "downloadUrl: " + downloadUrl);
@@ -139,13 +140,11 @@ public class AccountManager {
                 .subscribe(new Observer<ResponseBody>() {
                     @Override
                     public void onSubscribe(Disposable d) {
-
                     }
 
                     @Override
                     public void onNext(ResponseBody responseBody) {
                         byte[] buffer = new byte[1024];
-                        Log.d("LQS", "下载文件开始");
                         InputStream inputStream = responseBody.byteStream();
                         FileOutputStream fileOutputStream = null;
                         try {
@@ -155,7 +154,9 @@ public class AccountManager {
                                 fileOutputStream.write(buffer);
                             }
                             fileOutputStream.flush();
-                            notifyAvatarUpdate(newAlbumPath);//通知用户头像已经更新.*/
+                            //第二步通知头像更新完成，刷新UI
+                            notifyAvatarUpdate(thumnailAlbumPath);//通知用户头像已经更新.*/
+                            saveAvatar(thumnailAlbumPath);
 
                         } catch (FileNotFoundException e) {
                             e.printStackTrace();
@@ -192,9 +193,8 @@ public class AccountManager {
                 });
 
 
-        //第二步通知头像更新完成，刷新UI
     }
-
+    //检查头像图片是否需要更新。如果时间戳服务端更新，则需要下载头像更新.
     public boolean checkIfAvatarNeedUpdate() {
         String avatarServerString = (String) loginBean.getAvatar();
         if (avatarServerString == null) {
@@ -246,17 +246,18 @@ public class AccountManager {
 
         return sp.getString(AVATAR, "");
     }
+    //产生图片途径，在文件名上添加时间戳 有两个点需要产生。一个是拍照，或者从相册拿图片时。另一个是从服务端下载头像图片时
     public String generateNewAlbumPath() {
-        newAlbumPath = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "com.example.bottombar.demoprofile"+ "/" + System.currentTimeMillis() + "_1704_album.jpg";
-        return newAlbumPath;
+        thumnailAlbumPath = Environment.getExternalStorageDirectory().getAbsolutePath() + File.separator + "com.example.bottombar.demoprofile"+ "/" + System.currentTimeMillis() + "_1704_album.jpg";
+        return thumnailAlbumPath;
     }
 
-    public String getNewAlbumPath() {
-        return newAlbumPath;
+    public String getThumnailAlbumPath() {
+        return thumnailAlbumPath;
     }
 
-    public void setNewAlbumPath(String newAlbumPath) {
-        this.newAlbumPath = newAlbumPath;
+    public void setThumnailAlbumPath(String thumnailAlbumPath) {
+        this.thumnailAlbumPath = thumnailAlbumPath;
     }
 
 
